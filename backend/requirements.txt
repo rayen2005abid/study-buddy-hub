@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+opencv-python
+python-multipart
+requests
+# mediapipe <--- Moved to frontend due to Py3.14 incompatibility
