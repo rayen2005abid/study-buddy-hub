@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
+import { FaceLandmarker, FilesetResolver, ObjectDetector } from '@mediapipe/tasks-vision';
 
 interface FocusTrackerProps {
     className?: string;
@@ -43,6 +43,18 @@ const VOICE_MESSAGES = {
         "Nice consistent focus.",
         "One step at a time. You got this.",
         "Breath in, breath out. Stay focused."
+    ],
+    Hydration: [
+        "Remember to stay hydrated.",
+        "Take a sip of water.",
+        "Hydration helps your brain function better.",
+        "Don't forget to drink some water."
+    ],
+    Rewards: [
+        "You've been working hard, maybe grab a healthy snack.",
+        "Reward yourself with a small treat soon.",
+        "Great focus session! You deserve a snack.",
+        "Keep it up, and then treat yourself."
     ]
 };
 
@@ -53,10 +65,12 @@ const FocusTracker = ({ className }: FocusTrackerProps) => {
     const [emotion, setEmotion] = useState<string>('Neutral');
     const [phoneDetected, setPhoneDetected] = useState<boolean>(false);
     const [faceLandmarker, setFaceLandmarker] = useState<FaceLandmarker | null>(null);
+    const [objectDetector, setObjectDetector] = useState<ObjectDetector | null>(null);
     const ws = useRef<WebSocket | null>(null);
     const { toast } = useToast();
     const sessionStart = useRef<number>(Date.now());
     const lastAnalysis = useRef<number>(Date.now());
+    const lastObjectDetection = useRef<number>(Date.now());
     const lastAdviceTime = useRef<number>(0);
     const lastHappyTime = useRef<number>(0); // Rate limit positive feedback too
     const lastPhoneWarning = useRef<number>(0); // Rate limit phone warnings
@@ -87,6 +101,17 @@ const FocusTracker = ({ className }: FocusTrackerProps) => {
                 outputFaceBlendshapes: true
             });
             setFaceLandmarker(landmarker);
+
+            const objectDetector = await ObjectDetector.createFromOptions(vision, {
+                baseOptions: {
+                    modelAssetPath: `https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite`,
+                    delegate: "GPU"
+                },
+                scoreThreshold: 0.5,
+                runningMode: 'VIDEO'
+            });
+            setObjectDetector(objectDetector);
+
             setStatus('Distracted'); // Default start
         };
         initMediaPipe();
@@ -318,6 +343,16 @@ const FocusTracker = ({ className }: FocusTrackerProps) => {
                 const msg = msgs[Math.floor(Math.random() * msgs.length)];
                 speak(msg);
                 lastAdviceTime.current = now;
+            } else {
+                // Randomly suggest Hydration or Rewards if strictly focused
+                if (Math.random() > 0.8) {
+                    const extraCategory = Math.random() > 0.5 ? 'Hydration' : 'Rewards';
+                    // @ts-ignore
+                    const extraMsgs = VOICE_MESSAGES[extraCategory];
+                    const msg = extraMsgs[Math.floor(Math.random() * extraMsgs.length)];
+                    speak(msg);
+                    lastAdviceTime.current = now;
+                }
             }
         }
         // Periodic Analysis Check (Every 10 seconds for demo purposes, normally every minute)
@@ -326,7 +361,44 @@ const FocusTracker = ({ className }: FocusTrackerProps) => {
             lastAnalysis.current = Date.now();
         }
 
+        // Object Detection (Every 2 seconds)
+        if (Date.now() - lastObjectDetection.current > 2000) {
+            detectObjects();
+            lastObjectDetection.current = Date.now();
+        }
+
         requestAnimationFrame(predict);
+    };
+
+    const detectObjects = async () => {
+        if (!objectDetector || !videoRef.current) return;
+
+        let startTimeMs = performance.now();
+        const detections = objectDetector.detectForVideo(videoRef.current, startTimeMs);
+
+        if (detections.detections && detections.detections.length > 0) {
+            // Check for specific distracting objects
+            // MediaPipe efficientdet_lite0 COCO labels: "cell phone" is a label
+            const distractingObjects = detections.detections.filter((d) => {
+                const label = d.categories[0].categoryName?.toLowerCase();
+                return label === 'cell phone' || label === 'remote';
+            });
+
+            if (distractingObjects.length > 0) {
+                const label = distractingObjects[0].categories[0].categoryName;
+                // console.log("Distracting object detected:", label);
+                setPhoneDetected(true); // Re-use phone detected state for UI badge
+
+                const now = Date.now();
+                if (now - lastPhoneWarning.current > 15000) {
+                    speak(`I see a ${label}. Please put it away.`);
+                    lastPhoneWarning.current = now;
+                }
+            } else if (!distractingObjects.length) {
+                // If not distracted by phone, we rely on face pose for clearing the flag
+                // We don't exclusively clear it here to avoid flickering if pose is also bad
+            }
+        }
     };
 
     const speak = (text: string) => {

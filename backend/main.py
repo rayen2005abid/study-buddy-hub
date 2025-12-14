@@ -40,6 +40,7 @@ def read_root():
 
 from .chat_service import ChatService
 
+from .chat_service import ChatService
 chat_service = ChatService()
 analysis_service = AnalysisService()
 
@@ -288,4 +289,6 @@ def get_user_sessions(student_id: int, limit: int = 20, db: Session = Depends(ge
         "completed": s.completed,
         "distractions_count": s.distractions_count
     } for s in sessions]
+
+
 

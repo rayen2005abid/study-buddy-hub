@@ -61,11 +61,11 @@ const discordRooms = [
 ];
 
 const activeStudiers = [
-  { name: "Emma W.", course: "Memory", avatar: "" },
-  { name: "James L.", course: "Metacognition", avatar: "" },
-  { name: "Lisa M.", course: "Focus", avatar: "" },
-  { name: "Tom K.", course: "Motivation", avatar: "" },
-  { name: "Anna P.", course: "Cognitive Load", avatar: "" },
+  { name: "Rayen Abid", course: "Computer Science", avatar: "" },
+  { name: "Omar Agrebi", course: "Data Science", avatar: "" },
+  { name: "Razi Hmaied", course: "Cybersecurity", avatar: "" },
+  { name: "Ismail Shili", course: "Artificial Intelligence", avatar: "" },
+  { name: "Seifallah Abiriga", course: "Software Engineering", avatar: "" },
 ];
 
 export default function Collaborate() {
