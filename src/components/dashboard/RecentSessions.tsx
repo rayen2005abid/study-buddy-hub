@@ -1,43 +1,81 @@
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, CheckCircle, AlertCircle, BookOpen } from "lucide-react";
-
-const sessions = [
-  {
-    id: 1,
-    subject: "Metacognition & Self-regulation",
-    duration: "2h 15m",
-    focusScore: 92,
-    status: "completed",
-    time: "Today, 10:30 AM",
-  },
-  {
-    id: 2,
-    subject: "Mastering Memory",
-    duration: "1h 45m",
-    focusScore: 78,
-    status: "completed",
-    time: "Today, 2:00 PM",
-  },
-  {
-    id: 3,
-    subject: "Managing Cognitive Load",
-    duration: "45m",
-    focusScore: 45,
-    status: "interrupted",
-    time: "Yesterday, 4:15 PM",
-  },
-  {
-    id: 4,
-    subject: "Time Management and Focus",
-    duration: "1h 30m",
-    focusScore: 88,
-    status: "completed",
-    time: "Yesterday, 7:00 PM",
-  },
-];
+import { getUserSessions } from "@/lib/api";
 
 export function RecentSessions() {
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const studentId = 1; // Mocked logged-in user
+
+  useEffect(() => {
+    loadSessions();
+  }, []);
+
+  const loadSessions = async () => {
+    try {
+      const data = await getUserSessions(studentId, 5); // Get last 5 sessions
+      setSessions(data);
+    } catch (error) {
+      console.error("Failed to load sessions", error);
+      setSessions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDuration = (minutes: number) => {
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+    if (diffDays === 0) return `Today, ${timeStr}`;
+    if (diffDays === 1) return `Yesterday, ${timeStr}`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  if (loading) {
+    return (
+      <Card variant="glass" className="animate-fade-in">
+        <CardHeader>
+          <CardTitle>Recent Study Sessions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-40">
+            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (sessions.length === 0) {
+    return (
+      <Card variant="glass" className="animate-fade-in">
+        <CardHeader>
+          <CardTitle>Recent Study Sessions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-muted-foreground">
+            <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p>No sessions yet. Start your first study session!</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card variant="glass" className="animate-fade-in">
       <CardHeader>
@@ -53,13 +91,18 @@ export function RecentSessions() {
               <BookOpen className="h-5 w-5 text-primary" />
             </div>
             <div className="flex-1 space-y-1">
-              <p className="font-medium">{session.subject}</p>
+              <p className="font-medium">
+                {session.subject || "General Study"}
+                <Badge variant="secondary" className="ml-2 text-xs">
+                  {session.session_type}
+                </Badge>
+              </p>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
-                  {session.duration}
+                  {formatDuration(session.duration_minutes)}
                 </span>
-                <span>{session.time}</span>
+                <span>{formatTime(session.start_time)}</span>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -67,17 +110,17 @@ export function RecentSessions() {
                 <p className="text-sm font-medium">Focus Score</p>
                 <p
                   className={
-                    session.focusScore >= 80
+                    session.focus_score >= 80
                       ? "text-success"
-                      : session.focusScore >= 60
-                      ? "text-warning"
-                      : "text-destructive"
+                      : session.focus_score >= 60
+                        ? "text-warning"
+                        : "text-destructive"
                   }
                 >
-                  {session.focusScore}%
+                  {Math.round(session.focus_score)}%
                 </p>
               </div>
-              {session.status === "completed" ? (
+              {session.completed ? (
                 <CheckCircle className="h-5 w-5 text-success" />
               ) : (
                 <AlertCircle className="h-5 w-5 text-warning" />

@@ -156,3 +156,136 @@ def update_preferences(student_id: int, preference: schemas.PreferenceCreate, db
     db.commit()
     db.refresh(db_pref)
     return db_pref
+
+
+# ===== NEW PERSONALIZATION ENDPOINTS =====
+
+from backend.analytics_service import AnalyticsService
+from datetime import datetime
+
+analytics_service = AnalyticsService()
+
+class SessionStartRequest(BaseModel):
+    student_id: int
+    session_type: str = "focus"  # focus, break, pomodoro
+    subject: str = None
+
+class SessionUpdateRequest(BaseModel):
+    focus_score: float = None
+    distractions_count: int = None
+    duration_minutes: int = None
+
+class SessionCompleteRequest(BaseModel):
+    focus_score: float
+    duration_minutes: int
+    distractions_count: int = 0
+    completed: bool = True
+
+class FocusMetricRequest(BaseModel):
+    session_id: int
+    focus_score: float
+    emotion_state: str = None
+    distraction_type: str = None
+
+@app.post("/sessions/start")
+def start_session(request: SessionStartRequest, db: Session = Depends(get_db)):
+    """Start a new study session"""
+    session = models.StudySession(
+        student_id=request.student_id,
+        session_type=request.session_type,
+        subject=request.subject,
+        start_time=datetime.utcnow()
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return {"session_id": session.id, "start_time": session.start_time}
+
+@app.put("/sessions/{session_id}/update")
+def update_session(session_id: int, request: SessionUpdateRequest, db: Session = Depends(get_db)):
+    """Update an ongoing session"""
+    session = db.query(models.StudySession).filter(models.StudySession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if request.focus_score is not None:
+        session.focus_score = request.focus_score
+    if request.distractions_count is not None:
+        session.distractions_count = request.distractions_count
+    if request.duration_minutes is not None:
+        session.duration_minutes = request.duration_minutes
+    
+    db.commit()
+    return {"message": "Session updated"}
+
+@app.post("/sessions/{session_id}/complete")
+def complete_session(session_id: int, request: SessionCompleteRequest, db: Session = Depends(get_db)):
+    """Mark a session as complete"""
+    session = db.query(models.StudySession).filter(models.StudySession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session.end_time = datetime.utcnow()
+    session.focus_score = request.focus_score
+    session.duration_minutes = request.duration_minutes
+    session.distractions_count = request.distractions_count
+    session.completed = request.completed
+    
+    db.commit()
+    
+    # Update study patterns
+    analytics_service.update_study_pattern(db, session.student_id)
+    
+    return {"message": "Session completed", "session_id": session.id}
+
+@app.post("/sessions/{session_id}/focus-metric")
+def add_focus_metric(session_id: int, request: FocusMetricRequest, db: Session = Depends(get_db)):
+    """Add a focus metric data point to a session"""
+    metric = models.FocusMetric(
+        session_id=session_id,
+        focus_score=request.focus_score,
+        emotion_state=request.emotion_state,
+        distraction_type=request.distraction_type,
+        timestamp=datetime.utcnow()
+    )
+    db.add(metric)
+    db.commit()
+    return {"message": "Focus metric recorded"}
+
+@app.get("/students/{student_id}/stats")
+def get_user_stats(student_id: int, db: Session = Depends(get_db)):
+    """Get personalized statistics for a user"""
+    stats = analytics_service.calculate_user_stats(db, student_id)
+    return stats
+
+@app.get("/students/{student_id}/insights")
+def get_user_insights(student_id: int, db: Session = Depends(get_db)):
+    """Get personalized insights for a user"""
+    insights = analytics_service.generate_insights(db, student_id)
+    return {"insights": insights}
+
+@app.get("/students/{student_id}/weekly-data")
+def get_weekly_data(student_id: int, db: Session = Depends(get_db)):
+    """Get weekly study data for charts"""
+    data = analytics_service.get_weekly_data(db, student_id)
+    return {"weekly_data": data}
+
+@app.get("/students/{student_id}/sessions")
+def get_user_sessions(student_id: int, limit: int = 20, db: Session = Depends(get_db)):
+    """Get recent sessions for a user"""
+    sessions = db.query(models.StudySession).filter(
+        models.StudySession.student_id == student_id
+    ).order_by(models.StudySession.start_time.desc()).limit(limit).all()
+    
+    return [{
+        "id": s.id,
+        "start_time": s.start_time,
+        "end_time": s.end_time,
+        "duration_minutes": s.duration_minutes,
+        "focus_score": s.focus_score,
+        "subject": s.subject,
+        "session_type": s.session_type,
+        "completed": s.completed,
+        "distractions_count": s.distractions_count
+    } for s in sessions]
+

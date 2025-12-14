@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 import {
   Users,
   Video,
@@ -53,10 +54,10 @@ const studySessions = [
 ];
 
 const discordRooms = [
-  { name: "General Study Hall", members: 234, link: "#" },
-  { name: "Memory Masters", members: 89, link: "#" },
-  { name: "Focus Zone (Silent)", members: 156, link: "#" },
-  { name: "Exam Prep", members: 67, link: "#" },
+  { name: "HIDE Study Hall", members: 234, link: "https://discord.com/channels/1281183199380246570/1281212568471339008" },
+  { name: "General Discussion", members: 89, link: "https://discord.com/channels/1281183199380246570/1281212568471339008" },
+  { name: "Focus Zone (Silent)", members: 156, link: "https://discord.com/channels/1281183199380246570/1281212568471339008" },
+  { name: "Exam Prep & Support", members: 67, link: "https://discord.com/channels/1281183199380246570/1281212568471339008" },
 ];
 
 const activeStudiers = [
@@ -68,6 +69,29 @@ const activeStudiers = [
 ];
 
 export default function Collaborate() {
+  const { toast } = useToast();
+
+  const handleCreateSession = () => {
+    toast({
+      title: "Create Study Session",
+      description: "Session creation feature coming soon! You'll be able to schedule and host study sessions.",
+    });
+  };
+
+  const handleJoinSession = (sessionTitle: string) => {
+    toast({
+      title: "Joining Session",
+      description: `Connecting you to "${sessionTitle}"...`,
+    });
+  };
+
+  const handleSetReminder = (sessionTitle: string, time: string) => {
+    toast({
+      title: "Reminder Set",
+      description: `You'll be notified before "${sessionTitle}" starts at ${time}.`,
+    });
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -78,7 +102,7 @@ export default function Collaborate() {
               Connect with fellow students and learn collaboratively.
             </p>
           </div>
-          <Button variant="gradient" size="lg" className="gap-2">
+          <Button variant="gradient" size="lg" className="gap-2" onClick={handleCreateSession}>
             <Plus className="h-5 w-5" />
             Create Session
           </Button>
@@ -150,7 +174,10 @@ export default function Collaborate() {
                           Hosted by {session.host}
                         </p>
                       </div>
-                      <Button variant={session.active ? "gradient" : "secondary"}>
+                      <Button
+                        variant={session.active ? "gradient" : "secondary"}
+                        onClick={() => session.active ? handleJoinSession(session.title) : handleSetReminder(session.title, session.startTime)}
+                      >
                         {session.active ? (
                           <>
                             <Video className="h-4 w-4 mr-2" />

@@ -7,6 +7,7 @@ import {
   Camera,
   AppWindow,
   MessageSquare,
+  MessageSquareQuote,
   Users,
   History,
   Settings,
@@ -23,7 +24,7 @@ const navItems = [
   { icon: AppWindow, label: "App Tracker", path: "/apps" },
   { icon: MessageSquare, label: "AI Coach", path: "/coach" },
   { icon: Users, label: "Study Together", path: "/collaborate" },
-  { icon: Users, label: "Community", path: "/community" },
+  { icon: MessageSquareQuote, label: "Community", path: "/community" },
   { icon: History, label: "History", path: "/history" },
 ];
 

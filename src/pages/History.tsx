@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 import {
   Calendar,
   Clock,
@@ -72,6 +73,15 @@ const sessionHistory = [
 ];
 
 export default function History() {
+  const { toast } = useToast();
+
+  const handleFilter = () => {
+    toast({
+      title: "Filter Options",
+      description: "Advanced filtering by date range, course, and focus score coming soon!",
+    });
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -82,7 +92,7 @@ export default function History() {
               Track your progress and identify patterns in your study habits.
             </p>
           </div>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={handleFilter}>
             <Filter className="h-4 w-4" />
             Filter
           </Button>
@@ -184,8 +194,8 @@ export default function History() {
                           session.focusScore >= 80
                             ? "border-success text-success"
                             : session.focusScore >= 60
-                            ? "border-warning text-warning"
-                            : "border-destructive text-destructive"
+                              ? "border-warning text-warning"
+                              : "border-destructive text-destructive"
                         }
                       >
                         {session.focusScore}% Focus

@@ -48,3 +48,53 @@ export const chatWithCoach = async (message: string, apiKey?: string) => {
     const response = await api.post('/chat', { message, api_key: apiKey });
     return response.data;
 };
+
+// ===== PERSONALIZATION API =====
+
+export const startSession = async (studentId: number, sessionType: string = 'focus', subject?: string) => {
+    const response = await api.post('/sessions/start', {
+        student_id: studentId,
+        session_type: sessionType,
+        subject
+    });
+    return response.data;
+};
+
+export const updateSession = async (sessionId: number, data: {
+    focus_score?: number;
+    distractions_count?: number;
+    duration_minutes?: number;
+}) => {
+    const response = await api.put(`/sessions/${sessionId}/update`, data);
+    return response.data;
+};
+
+export const completeSession = async (sessionId: number, data: {
+    focus_score: number;
+    duration_minutes: number;
+    distractions_count?: number;
+    completed?: boolean;
+}) => {
+    const response = await api.post(`/sessions/${sessionId}/complete`, data);
+    return response.data;
+};
+
+export const getUserStats = async (studentId: number) => {
+    const response = await api.get(`/students/${studentId}/stats`);
+    return response.data;
+};
+
+export const getUserInsights = async (studentId: number) => {
+    const response = await api.get(`/students/${studentId}/insights`);
+    return response.data;
+};
+
+export const getWeeklyData = async (studentId: number) => {
+    const response = await api.get(`/students/${studentId}/weekly-data`);
+    return response.data;
+};
+
+export const getUserSessions = async (studentId: number, limit: number = 20) => {
+    const response = await api.get(`/students/${studentId}/sessions?limit=${limit}`);
+    return response.data;
+};

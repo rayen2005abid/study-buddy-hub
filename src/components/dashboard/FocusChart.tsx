@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AreaChart,
@@ -8,18 +9,59 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-
-const data = [
-  { day: "Mon", focus: 4.2, target: 5 },
-  { day: "Tue", focus: 5.8, target: 5 },
-  { day: "Wed", focus: 3.5, target: 5 },
-  { day: "Thu", focus: 6.2, target: 5 },
-  { day: "Fri", focus: 4.8, target: 5 },
-  { day: "Sat", focus: 2.1, target: 5 },
-  { day: "Sun", focus: 3.9, target: 5 },
-];
+import { getWeeklyData } from "@/lib/api";
 
 export function FocusChart() {
+  const [weeklyData, setWeeklyData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const studentId = 1; // Mocked logged-in user
+
+  useEffect(() => {
+    loadWeeklyData();
+  }, []);
+
+  const loadWeeklyData = async () => {
+    try {
+      const response = await getWeeklyData(studentId);
+      const data = response.weekly_data.map((d: any) => ({
+        day: d.day,
+        focus: d.hours,
+        target: 5
+      }));
+      setWeeklyData(data);
+    } catch (error) {
+      console.error("Failed to load weekly data", error);
+      // Fallback to empty data
+      setWeeklyData([
+        { day: "Mon", focus: 0, target: 5 },
+        { day: "Tue", focus: 0, target: 5 },
+        { day: "Wed", focus: 0, target: 5 },
+        { day: "Thu", focus: 0, target: 5 },
+        { day: "Fri", focus: 0, target: 5 },
+        { day: "Sat", focus: 0, target: 5 },
+        { day: "Sun", focus: 0, target: 5 },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card variant="glass" className="animate-fade-in">
+        <CardHeader>
+          <CardTitle>Weekly Focus Hours</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px] flex items-center justify-center">
+            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card variant="glass" className="animate-fade-in">
       <CardHeader>
@@ -33,7 +75,7 @@ export function FocusChart() {
       <CardContent>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data}>
+            <AreaChart data={weeklyData}>
               <defs>
                 <linearGradient id="focusGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="hsl(243 75% 59%)" stopOpacity={0.4} />
@@ -66,7 +108,7 @@ export function FocusChart() {
                   borderRadius: "8px",
                   color: "hsl(210 40% 98%)",
                 }}
-                formatter={(value: number) => [`${value}h`, "Focus Time"]}
+                formatter={(value: number) => [`${value.toFixed(1)}h`, "Focus Time"]}
               />
               <Area
                 type="monotone"
