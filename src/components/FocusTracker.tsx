@@ -51,6 +51,7 @@ const FocusTracker = ({ className }: FocusTrackerProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [status, setStatus] = useState<'Focused' | 'Distracted' | 'Loading'>('Loading');
     const [emotion, setEmotion] = useState<string>('Neutral');
+    const [phoneDetected, setPhoneDetected] = useState<boolean>(false);
     const [faceLandmarker, setFaceLandmarker] = useState<FaceLandmarker | null>(null);
     const ws = useRef<WebSocket | null>(null);
     const { toast } = useToast();
@@ -58,6 +59,7 @@ const FocusTracker = ({ className }: FocusTrackerProps) => {
     const lastAnalysis = useRef<number>(Date.now());
     const lastAdviceTime = useRef<number>(0);
     const lastHappyTime = useRef<number>(0); // Rate limit positive feedback too
+    const lastPhoneWarning = useRef<number>(0); // Rate limit phone warnings
 
     // Smoothing Variables
     const prevYaw = useRef<number>(0.5); // Start centered
@@ -181,15 +183,48 @@ const FocusTracker = ({ className }: FocusTrackerProps) => {
             // Pitch: Nose usually around 0.4-0.6. 
             // Looking down (phone) => y increases > 0.7
             // Looking up => y decreases < 0.3
-            const isLookingUpOrDown = smoothedPitch < 0.3 || smoothedPitch > 0.75;
+            const isLookingDown = smoothedPitch > 0.65; // Adjusted threshold for phone detection
+            const isLookingUp = smoothedPitch < 0.25; // Adjusted threshold for looking up
+            const isLookingUpOrDown = isLookingUp || isLookingDown;
 
-            if (isLookingCenter && !isLookingUpOrDown) {
+            // Detect phone usage (looking down)
+            if (isLookingDown) {
+                setPhoneDetected(true);
+                setStatus('Distracted');
+                if (ws.current?.readyState === WebSocket.OPEN) {
+                    ws.current.send(JSON.stringify({
+                        type: "distraction",
+                        distraction_type: "phone",
+                        focus_score: 0
+                    }));
+                }
+
+                // Warn about phone usage (rate limited)
+                const now = Date.now();
+                if (now - lastPhoneWarning.current > 15000) { // Every 15 seconds
+                    speak("Phone detected. Please focus on your screen.");
+                    console.log('Phone detection state:', isLookingDown);
+                    lastPhoneWarning.current = now;
+                }
+            } else if (isLookingCenter && !isLookingUpOrDown) {
+                setPhoneDetected(false);
                 setStatus('Focused');
                 isFocused = true;
-                if (ws.current?.readyState === WebSocket.OPEN) ws.current.send("focused");
+                if (ws.current?.readyState === WebSocket.OPEN) {
+                    ws.current.send(JSON.stringify({
+                        type: "focused",
+                        focus_score: 100
+                    }));
+                }
             } else {
+                setPhoneDetected(false);
                 setStatus('Distracted');
-                if (ws.current?.readyState === WebSocket.OPEN) ws.current.send("distracted");
+                if (ws.current?.readyState === WebSocket.OPEN) {
+                    ws.current.send(JSON.stringify({
+                        type: "distracted",
+                        focus_score: 50
+                    }));
+                }
             }
 
             // Draw Focus Box
@@ -377,6 +412,13 @@ const FocusTracker = ({ className }: FocusTrackerProps) => {
                     }`}>
                     {status}
                 </div>
+
+                {/* Phone Detection Badge */}
+                {phoneDetected && (
+                    <div className="absolute top-10 right-2 px-2 py-0.5 rounded text-xs font-medium z-20 bg-orange-100 text-orange-700 shadow-sm border border-orange-200 animate-pulse">
+                        📱 Phone Detected
+                    </div>
+                )}
 
                 {/* Emotion Badge */}
                 <div className="absolute top-2 left-2 px-2 py-0.5 rounded text-xs font-medium z-20 bg-blue-100 text-blue-700 shadow-sm border border-blue-200">

@@ -6,6 +6,7 @@ import { Play, Pause, RotateCcw, Settings2, Volume2, VolumeX } from "lucide-reac
 import { cn } from "@/lib/utils";
 import { startSession, completeSession } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import FocusTracker from "@/components/FocusTracker";
 
 const FOCUS_TIME = 25 * 60; // 25 minutes
 const BREAK_TIME = 5 * 60; // 5 minutes
@@ -260,6 +261,13 @@ export default function Timer() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Focus Tracker - Only show during active focus sessions */}
+        {isRunning && mode === "focus" && (
+          <div className="w-full max-w-md">
+            <FocusTracker className="w-full" />
+          </div>
+        )}
       </div>
     </Layout>
   );

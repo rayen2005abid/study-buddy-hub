@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Bell, Camera, Shield, Clock, User, Save, Volume2, Brain } from "lucide-react";
+import { useToast } from "@/hooks/use-toast"; // Added toast hook
 
 export default function Settings() {
   const [preferences, setPreferences] = useState({
@@ -19,6 +20,7 @@ export default function Settings() {
     api_key: "",
   });
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     // Fetch preferences for mocked student ID 1
@@ -39,10 +41,10 @@ export default function Settings() {
     setLoading(true);
     try {
       await updatePreferences(1, preferences); // Mocked student ID 1
-      alert("Settings saved!");
+      toast({ title: "Success", description: "Settings saved!", variant: "default" });
     } catch (error) {
       console.error("Error saving settings", error);
-      alert("Failed to save settings");
+      toast({ title: "Error", description: "Failed to save settings", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -131,7 +133,15 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-4">
+          <Button variant="outline" onClick={() => setPreferences({
+            study_duration_minutes: 45,
+            break_duration_minutes: 15,
+            theme: "dark",
+            api_key: "sk-sample-key-12345"
+          })}>
+            Load Sample Data
+          </Button>
           <Button variant="gradient" size="lg" className="gap-2" onClick={handleSave} disabled={loading}>
             <Save className="h-5 w-5" />
             {loading ? "Saving..." : "Save Changes"}
